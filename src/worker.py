@@ -2,8 +2,9 @@ import logging
 import tempfile
 import json
 
+import zmq
 from dranspose.event import EventData
-from dranspose.parameters import IntParameter, StrParameter
+from dranspose.parameters import BoolParameter
 from dranspose.middlewares.stream1 import parse
 from dranspose.data.stream1 import Stream1Data, Stream1End, Stream1Start
 
@@ -19,12 +20,22 @@ class TomoWorker:
     @staticmethod
     def describe_parameters():
         params = [
+            BoolParameter(name="tomo_repub"),
         ]
         return params
 
-    def __init__(self, parameters=None, context=None, **kwargs):
+    def __init__(self, parameters, context, **kwargs):
         self.pile = None
         self.nimages = 0
+        self.sock = None
+        if parameters["tomo_repub"].value is True:
+            if "context" not in context:
+                context["context"] = zmq.Context()
+                context["socket"] = context["context"].socket(zmq.PUSH)
+                # hack to extract port from worker name
+                context["socket"].bind(f"tcp://*:5554")
+
+            self.sock = context["socket"]
 
     def process_event(self, event: EventData, parameters=None):
         sardana = None
@@ -34,8 +45,11 @@ class TomoWorker:
         dat = None
         if "orca" in event.streams:
             dat = parse(event.streams["orca"])
-        if "andor3_balor" in event.streams:
-            dat = parse(event.streams["andor3_balor"])
+            if self.sock:
+                try:
+                    self.sock.send_multipart(event.streams["orca"].frames)
+                except Exception as e:
+                    logger.warning("cannot repub frame %s", e.__repr__())
 
         if isinstance(dat, Stream1Start):
             return {"filename": dat.filename}
