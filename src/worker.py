@@ -33,7 +33,7 @@ class TomoWorker:
                 context["context"] = zmq.Context()
                 context["socket"] = context["context"].socket(zmq.PUSH)
                 # hack to extract port from worker name
-                context["socket"].bind(f"tcp://*:5554")
+                context["socket"].bind(f"tcp://*:5556")
 
             self.sock = context["socket"]
 
