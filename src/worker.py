@@ -47,7 +47,7 @@ class TomoWorker:
             dat = parse(event.streams["orca"])
             if self.sock:
                 try:
-                    self.sock.send_multipart(event.streams["orca"].frames)
+                    self.sock.send_multipart(event.streams["orca"].frames, flags=zmq.NOBLOCK)
                 except Exception as e:
                     logger.warning("cannot repub frame %s", e.__repr__())
 

@@ -25,7 +25,7 @@ class TomoReducer:
 
     def process_result(self, result: ResultData, parameters=None):
         if result.payload:
-            if "filename" in result.payload:
+            if "filename" in result.payload and result.payload["filename"] != "":
                 fn = result.payload["filename"]
                 parts = fn.split(".")
                 self.filename = f"{'.'.join(parts[:-1])}_mean.{parts[-1]}"
