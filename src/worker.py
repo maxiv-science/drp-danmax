@@ -61,8 +61,10 @@ class TomoWorker:
                         header = json.loads(event.streams["orca"].frames[0].bytes)
                         header["encode_angle"] = angle
                         parts = [json.dumps(header).encode()]+event.streams["orca"].frames[1:]
+                        logger.info("send augmented header %s", parts[0])
                         self.sock.send_multipart(parts, flags=zmq.NOBLOCK)
                     else:
+                        logger.info("no angle added")
                         self.sock.send_multipart(event.streams["orca"].frames, flags=zmq.NOBLOCK)
                 except Exception as e:
                     logger.warning("cannot repub frame %s", e.__repr__())
