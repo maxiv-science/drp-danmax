@@ -58,10 +58,12 @@ class TomoWorker:
             if self.sock:
                 try:
                     if angle is not None:
-                        header = json.parse(event.streams["orca"].frames[0].bytes)
+                        header = json.loads(event.streams["orca"].frames[0].bytes)
                         header["encode_angle"] = angle
                         parts = [json.dumps(header)]+event.streams["orca"].frames[1:]
-                    self.sock.send_multipart(parts, flags=zmq.NOBLOCK)
+                        self.sock.send_multipart(parts, flags=zmq.NOBLOCK)
+                    else:
+                        self.sock.send_multipart(event.streams["orca"].frames, flags=zmq.NOBLOCK)
                 except Exception as e:
                     logger.warning("cannot repub frame %s", e.__repr__())
 
