@@ -45,7 +45,7 @@ class TomoWorker:
         degree_to_enc_formula = np.poly1d([11930463,0])
         angle = None
         if "pcap_rot" in event.streams:
-            rot = (ev.streams["pcap_rot"].frames[0].decode().split(" ")[-1])
+            rot = (event.streams["pcap_rot"].frames[0].decode().split(" ")[-1])
             try:
                 d = float(rot)
                 angle = np.roots(degree_to_enc_formula - d)[0] - 50
