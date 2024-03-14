@@ -60,9 +60,13 @@ class TomoWorker:
                     if angle is not None:
                         header = json.loads(event.streams["orca"].frames[0].bytes)
                         header["encode_angle"] = angle
-                        parts = [json.dumps(header).encode()]+event.streams["orca"].frames[1:]
+                        #parts = [json.dumps(header).encode()]+event.streams["orca"].frames[1:]
+                        self.sock.send_json(header,
+                            flags=zmq.SNDMORE,
+                        )
+                        self.sock.send(event.streams["orca"].frames[1], flags=zmq.NOBLOCK)
                         logger.info("send augmented header %s", parts[0])
-                        self.sock.send_multipart(parts, flags=zmq.NOBLOCK)
+                        #self.sock.send_multipart(parts, flags=zmq.NOBLOCK)
                     else:
                         logger.info("no angle added")
                         self.sock.send_multipart(event.streams["orca"].frames, flags=zmq.NOBLOCK)
