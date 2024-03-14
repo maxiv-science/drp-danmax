@@ -42,12 +42,26 @@ class TomoWorker:
         if "sardana" in event.streams:
             sardana = sardana_parse(event.streams["sardana"])
 
+        degree_to_enc_formula = np.poly1d([11930463,0])
+        angle = None
+        if "pcap_rot" in event.streams:
+            rot = (ev.streams["pcap_rot"].frames[0].decode().split(" ")[-1])
+            try:
+                d = float(rot)
+                angle = np.roots(degree_to_enc_formula - d)[0] - 50
+            except:
+                pass
         dat = None
         if "orca" in event.streams:
             dat = parse(event.streams["orca"])
+
             if self.sock:
                 try:
-                    self.sock.send_multipart(event.streams["orca"].frames, flags=zmq.NOBLOCK)
+                    if angle is not None:
+                        header = json.parse(event.streams["orca"].frames[0])
+                        header["encode_angle"] = angle
+                        parts = [json.dumps(header)]+event.streams["orca"].frames[1:]
+                    self.sock.send_multipart(parts, flags=zmq.NOBLOCK)
                 except Exception as e:
                     logger.warning("cannot repub frame %s", e.__repr__())
 
