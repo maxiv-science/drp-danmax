@@ -65,7 +65,7 @@ class TomoWorker:
                             flags=zmq.SNDMORE,
                         )
                         self.sock.send(event.streams["orca"].frames[1], flags=zmq.NOBLOCK)
-                        logger.info("send augmented header %s", parts[0])
+                        logger.info("send augmented header %s", header)
                         #self.sock.send_multipart(parts, flags=zmq.NOBLOCK)
                     else:
                         logger.info("no angle added")
