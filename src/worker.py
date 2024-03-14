@@ -62,7 +62,7 @@ class TomoWorker:
                         header["encode_angle"] = angle
                         #parts = [json.dumps(header).encode()]+event.streams["orca"].frames[1:]
                         self.sock.send_json(header,
-                            flags=zmq.SNDMORE,
+                            flags=zmq.SNDMORE|zmq.NOBLOCK,
                         )
                         self.sock.send(event.streams["orca"].frames[1], flags=zmq.NOBLOCK)
                         logger.info("send augmented header %s", header)
