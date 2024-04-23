@@ -28,7 +28,7 @@ class TomoWorker:
         self.pile = None
         self.nimages = 0
         self.sock = None
-        if parameters["tomo_repub"].value is True:
+        if "tomo_repub" in parameters and parameters["tomo_repub"].value is True:
             if "context" not in context:
                 context["context"] = zmq.Context()
                 context["socket"] = context["context"].socket(zmq.PUSH)
