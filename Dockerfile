@@ -2,8 +2,8 @@ FROM python:3
 
 ARG CI_COMMIT_SHA=0000
 ARG CI_COMMIT_REF_NAME=none
-ARG CI_COMMIT_AUTHOR=none
-ARG CI_COMMIT_MESSAGE=none
+#ARG CI_COMMIT_AUTHOR=none
+#ARG CI_COMMIT_MESSAGE=none
 ARG CI_COMMIT_TIMESTAMP=0
 ARG CI_PROJECT_URL=none
 
@@ -17,8 +17,6 @@ COPY src /tmp/src
 RUN cat << EOF > /git_meta
 {"commit_hash": ${CI_COMMIT_SHA},
 "branch_name": ${CI_COMMIT_REF_NAME},
-"author": ${CI_COMMIT_AUTHOR},
-"commit_message": ${CI_COMMIT_MESSAGE},
 "timestamp": ${CI_COMMIT_TIMESTAMP},
 "repository_url": ${CI_PROJECT_URL},
 }
