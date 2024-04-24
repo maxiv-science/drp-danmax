@@ -16,10 +16,10 @@ RUN python -m pip --no-cache-dir install -r requirements.txt
 COPY src /tmp/src
 COPY <<EOF /git_meta
 {
-"commit_hash": ${CI_COMMIT_SHA},
-"branch_name": ${CI_COMMIT_REF_NAME},
-"timestamp": ${CI_COMMIT_TIMESTAMP},
-"repository_url": ${CI_PROJECT_URL},
+"commit_hash": "${CI_COMMIT_SHA}",
+"branch_name": "${CI_COMMIT_REF_NAME}",
+"timestamp": "${CI_COMMIT_TIMESTAMP}",
+"repository_url": "${CI_PROJECT_URL}",
 }
 EOF
 
