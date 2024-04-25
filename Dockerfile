@@ -14,7 +14,7 @@ COPY requirements.txt /tmp/requirements.txt
 RUN python -m pip --no-cache-dir install -r requirements.txt
 
 COPY src /tmp/src
-COPY <<EOF /git_meta
+COPY <<EOF /etc/build_git_meta.json
 {
 "commit_hash": "${CI_COMMIT_SHA}",
 "branch_name": "${CI_COMMIT_REF_NAME}",
