@@ -19,7 +19,7 @@ COPY <<EOF /etc/build_git_meta.json
 "commit_hash": "${CI_COMMIT_SHA}",
 "branch_name": "${CI_COMMIT_REF_NAME}",
 "timestamp": "${CI_COMMIT_TIMESTAMP}",
-"repository_url": "${CI_PROJECT_URL}",
+"repository_url": "${CI_PROJECT_URL}"
 }
 EOF
 
