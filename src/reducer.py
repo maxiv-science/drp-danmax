@@ -6,6 +6,7 @@ from dranspose.parameters import StrParameter, BoolParameter
 import os
 import h5py
 import numpy as np
+import h5pyd
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +23,17 @@ class TomoReducer:
         self.pile = None
         self.nimages = 0
         self.filename = None
+        self.hsds = h5pyd.File("http://danmax-pipeline-hsds.daq.maxiv.lu.se/home/live", username="admin", password="admin", mode="w")
+        self.hsds.require_group("basler")
+        self.mean_ds = self.hsds["basler"].require_dataset("mean", shape=(1,), dtype=float)
+        self.cg_ds = self.hsds["basler"].require_dataset("cg", shape=(2,), dtype=float)
 
     def process_result(self, result: ResultData, parameters=None):
         if result.payload:
+            if "basler_mean" in result.payload:
+                self.mean_ds[()] = result.payload["basler_mean"]
+            if "basler_cg" in result.payload:
+                self.cg_ds[:] = result.payload["basler_cg"]
             if "filename" in result.payload and result.payload["filename"] != "":
                 fn = result.payload["filename"]
                 parts = fn.split(".")
@@ -49,3 +58,4 @@ class TomoReducer:
                 group = fh.create_group("pileup")
                 group.create_dataset("nimages", data=self.nimages)
                 group.create_dataset("data", data=(self.pile/self.nimages).astype(np.float32))
+        self.hsds.close()

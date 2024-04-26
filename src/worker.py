@@ -11,6 +11,7 @@ from dranspose.data.stream1 import Stream1Data, Stream1End, Stream1Start
 from dranspose.middlewares.sardana import parse as sardana_parse
 import numpy as np
 from numpy import unravel_index
+from scipy import ndimage
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,17 @@ class TomoWorker:
         sardana = None
         if "sardana" in event.streams:
             sardana = sardana_parse(event.streams["sardana"])
+
+        if "basler5" in event.streams:
+            dat = parse(event.streams["basler5"])
+            print(dat)
+            if isinstance(dat, Stream1Data):
+                #np.save("test.npy", dat.data)
+                intens = dat.data.mean()
+                print("mean:", intens)
+                cg = ndimage.center_of_mass(dat.data)
+                print("center:", cg)
+                return {"basler_mean": intens, "basler_cg": cg}
 
         degree_to_enc_formula = np.poly1d([11930463,0])
         angle = None
