@@ -21,7 +21,7 @@ class TomoWorker:
     @staticmethod
     def describe_parameters():
         params = [
-            BoolParameter(name="tomo_repub"),
+            BoolParameter(name="tomo_repub", default=True),
         ]
         return params
 

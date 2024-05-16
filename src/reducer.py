@@ -15,7 +15,7 @@ class TomoReducer:
     @staticmethod
     def describe_parameters():
         params = [
-            BoolParameter(name="pileup"),
+            BoolParameter(name="pileup", default=False),
         ]
         return params
 
