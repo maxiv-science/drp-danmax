@@ -1,14 +1,18 @@
 import logging
 import tempfile
 import json
+from datetime import datetime, timedelta, timezone
 
 import zmq
 from dranspose.event import EventData
 from dranspose.parameters import BoolParameter
 from dranspose.middlewares.stream1 import parse
 from dranspose.data.stream1 import Stream1Data, Stream1End, Stream1Start
+from dranspose.data.positioncap import PositionCapStart, PositionCapValues
+
 
 from dranspose.middlewares.sardana import parse as sardana_parse
+from dranspose.middlewares.positioncap import PositioncapParser
 import numpy as np
 from numpy import unravel_index
 from scipy import ndimage
@@ -29,6 +33,9 @@ class TomoWorker:
         self.pile = None
         self.nimages = 0
         self.sock = None
+        self.pcap = PositioncapParser()
+        self.arm_time = None
+
         if "tomo_repub" in parameters and parameters["tomo_repub"].value is True:
             if "context" not in context:
                 logger.info("open context because there was none")
@@ -62,22 +69,32 @@ class TomoWorker:
 
         degree_to_enc_formula = np.poly1d([11930463,0])
         angle = None
+        triggerstr = None
         if "pcap_rot" in event.streams:
-            rot = (event.streams["pcap_rot"].frames[0].bytes.decode().split(" ")[-1])
-            try:
-                d = float(rot)
+            res = self.pcap.parse(event.streams["pcap_rot"])
+            if isinstance(res, PositionCapStart):
+                self.arm_time = res.arm_time
+            elif isinstance(res, PositionCapValues):
+                triggertime = timedelta(seconds=res.fields["PCAP.TS_TRIG.Value"].value)
+                d = res.fields["SFP3_SYNC_IN.POS1.Mean"].value
                 angle = np.roots(degree_to_enc_formula - d)[0] - 50
-            except:
-                pass
+                triggerstr = (self.arm_time+triggertime).isoformat()
         dat = None
         if "orca" in event.streams:
             dat = parse(event.streams["orca"])
 
             if self.sock:
                 try:
-                    if angle is not None:
-                        header = json.loads(event.streams["orca"].frames[0].bytes)
-                        header["encoder_angle"] = angle
+                    if angle is not None or triggerstr is not None:
+                        frame0 = event.streams["orca"].frames[0]
+                        if isinstance(frame0, zmq.Frame):
+                            frame0 = frame0.bytes
+                        header = json.loads(frame0)
+                        if angle is not None:
+                            header["encoder_angle"] = angle
+                        if triggerstr is not None:
+                            header["timestamp_pcap"] = triggerstr
+                        header["timestamp_worker"] = datetime.now(timezone.utc).isoformat()
                         #parts = [json.dumps(header).encode()]+event.streams["orca"].frames[1:]
                         self.sock.send_json(header,
                             flags=zmq.SNDMORE|zmq.NOBLOCK,
