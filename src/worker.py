@@ -31,10 +31,16 @@ class TomoWorker:
         self.sock = None
         if "tomo_repub" in parameters and parameters["tomo_repub"].value is True:
             if "context" not in context:
+                logger.info("open context because there was none")
                 context["context"] = zmq.Context()
+                logger.info("binding PUSH socket with keepalive")
                 context["socket"] = context["context"].socket(zmq.PUSH)
+                context["socket"].setsockopt(zmq.TCP_KEEPALIVE, 1)
+                context["socket"].setsockopt(zmq.TCP_KEEPALIVE_IDLE, 60)
+                context["socket"].setsockopt(zmq.TCP_KEEPALIVE_CNT, 10)
+                context["socket"].setsockopt(zmq.TCP_KEEPALIVE_INTVL, 1)
                 # hack to extract port from worker name
-                context["socket"].bind(f"tcp://*:5556")
+                context["socket"].bind(f"tcp://*:8556")
 
             self.sock = context["socket"]
 
