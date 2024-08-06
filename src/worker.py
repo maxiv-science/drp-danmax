@@ -1,11 +1,12 @@
 import logging
+import os
 import tempfile
 import json
 from datetime import datetime, timedelta, timezone
 
 import zmq
 from dranspose.event import EventData
-from dranspose.parameters import BoolParameter
+from dranspose.parameters import BoolParameter, FileParameter, IntParameter, StrParameter
 from dranspose.middlewares.stream1 import parse
 from dranspose.data.stream1 import Stream1Data, Stream1End, Stream1Start
 from dranspose.data.positioncap import PositionCapStart, PositionCapValues
@@ -17,6 +18,10 @@ import numpy as np
 from numpy import unravel_index
 from scipy import ndimage
 
+from bitshuffle import decompress_lz4
+import azint
+import fabio
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,6 +31,11 @@ class TomoWorker:
     def describe_parameters():
         params = [
             BoolParameter(name="tomo_repub", default=True),
+            FileParameter(name="poni"),
+            IntParameter(name="radial_bins", default=1000),
+            IntParameter(name="n_splitting", default=4),
+            StrParameter(name="unit", default="q"),
+            FileParameter(name="mask"),
         ]
         return params
 
@@ -35,6 +45,26 @@ class TomoWorker:
         self.sock = None
         self.pcap = PositioncapParser()
         self.arm_time = None
+
+        self.ai = None
+        if "poni_file" in parameters:
+            print("par", parameters["poni_file"])
+            with tempfile.NamedTemporaryFile() as fp:
+                fp.write(parameters["poni_file"].data)
+                fp.flush()
+                config = {}
+                if parameters["mask"].value != "":
+                    with tempfile.NamedTemporaryFile() as maskfp:
+                        ending = os.path.splitext(parameters["mask"].value)[1]
+                        maskfp.write(parameters["mask_file"].data)
+                        if ending == '.npy':
+                            config['mask'] = np.load(maskfp.name)
+                        else:
+                            config['mask'] = fabio.open(maskfp.name).data
+                        maskfp.flush()
+
+                self.ai = azint.AzimuthalIntegrator(fp.name, parameters["n_splitting"].value, parameters["radial_bins"].value,
+                                                    unit=parameters["unit"].value, **config)
 
         if "tomo_repub" in parameters and parameters["tomo_repub"].value is True:
             if "context" not in context:
@@ -66,6 +96,23 @@ class TomoWorker:
                 cg = ndimage.center_of_mass(dat.data)
                 print("center:", cg)
                 return {"basler_mean": intens, "basler_cg": cg}
+
+        if "pilatus" in event.streams:
+            logger.debug("use pilatus data for azint")
+            if self.ai is not None:
+                data = parse(event.streams["pilatus"])
+                if isinstance(data, Stream1Start):
+                    return {"azint":{"axis": self.ai.radial_axis}}
+                if isinstance(data, Stream1Data):
+                    if 'bslz4' in data.compression:
+                        bufframe = event.streams["pilatus"].frames[1]
+                        if isinstance(bufframe, zmq.Frame):
+                            bufframe = bufframe.bytes
+                        img = decompress_lz4(bufframe, data.shape, dtype=data.type)
+                        #print("decomp", img, img.shape)
+                        I, _ = self.ai.integrate(img)
+                        logger.debug("got I", I.shape)
+                        return {"azint": {"I":I}}
 
         degree_to_enc_formula = np.poly1d([11930463,0])
         angle = None
