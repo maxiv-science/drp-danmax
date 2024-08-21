@@ -85,6 +85,7 @@ class TomoWorker:
         sardana = None
         if "sardana" in event.streams:
             sardana = sardana_parse(event.streams["sardana"])
+            print("saranda is", sardana)
 
         if "basler5" in event.streams:
             dat = parse(event.streams["basler5"])
@@ -111,8 +112,12 @@ class TomoWorker:
                         img = decompress_lz4(bufframe, data.shape, dtype=data.type)
                         #print("decomp", img, img.shape)
                         I, _ = self.ai.integrate(img)
-                        logger.debug("got I", I.shape)
-                        return {"azint": {"I":I}}
+                        logger.debug("got I %s", I.shape)
+                        pos = {}
+                        if hasattr(sardana, "pd_sam_x") and hasattr(sardana, "pd_sam_y"):
+                            print("got position")
+                            pos = {"x":sardana.pd_sam_x, "y":sardana.pd_sam_y}
+                        return {"azint": {"I":I, "position": pos}}
 
         degree_to_enc_formula = np.poly1d([11930463,0])
         angle = None

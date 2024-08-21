@@ -44,7 +44,7 @@ class TomoReducer:
                         pass
                     self.hsds["azint"].create_dataset("radial_axis", data=result.payload["azint"]["axis"])
                 else:
-                    self.buffer[result.event_number] = result.payload["azint"]["I"]
+                    self.buffer[result.event_number] = result.payload["azint"]
 
             if "basler_mean" in result.payload:
                 self.mean_ds[()] = result.payload["basler_mean"]
@@ -70,9 +70,11 @@ class TomoReducer:
                     del self.hsds["azint"]["data"]
                 except:
                     pass
-                sample = list(self.buffer.values())[0]
+                sample = list(self.buffer.values())[0]["I"]
                 self.hsds["azint"].require_dataset("data", shape=(0,sample.shape[0]), maxshape=(None,sample.shape[0]),
                                                   dtype=sample.dtype)  # len(result.payload["pcap_start"]),
+                self.hsds["azint"].require_dataset("positions", shape=(0,2), maxshape=(None,2),
+                                                  dtype=np.float32)
 
                 self.first = False
 
@@ -83,15 +85,15 @@ class TomoReducer:
             self.hsds["azint/data"].resize( max(oldsize, max(cpy.keys())), axis=0)
             sort_keys = list(sorted(cpy.keys()))
             start = sort_keys[0]
-            chunk = [cpy[start]]
+            chunk = [cpy[start]["I"]]
             for pevn, evn in zip(sort_keys, sort_keys[1:]):
                 if evn == pevn +1:
                     # consecutive
-                    chunk.append(cpy[evn])
+                    chunk.append(cpy[evn]["I"])
                 else:
                     self.hsds["azint/data"][start:start+len(chunk)] = chunk
                     start = evn
-                    chunk = [cpy[start]]
+                    chunk = [cpy[start]["I"]]
             self.hsds["azint/data"][start:start + len(chunk)] = chunk
         return 1
 
