@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import zmq
 from dranspose.event import EventData
-from dranspose.parameters import BoolParameter, FileParameter, IntParameter, StrParameter
+from dranspose.parameters import BoolParameter, IntParameter, StrParameter
 from dranspose.middlewares.stream1 import parse
 from dranspose.data.stream1 import Stream1Data, Stream1End, Stream1Start
 from dranspose.data.positioncap import PositionCapStart, PositionCapValues
@@ -31,11 +31,11 @@ class TomoWorker:
     def describe_parameters():
         params = [
             BoolParameter(name="tomo_repub", default=True),
-            FileParameter(name="poni"),
+            #FileParameter(name="poni"),
             IntParameter(name="radial_bins", default=1000),
             IntParameter(name="n_splitting", default=4),
             StrParameter(name="unit", default="q"),
-            FileParameter(name="mask"),
+            #FileParameter(name="mask"),
         ]
         return params
 
@@ -53,7 +53,7 @@ class TomoWorker:
                 fp.write(parameters["poni_file"].data)
                 fp.flush()
                 config = {}
-                if parameters["mask"].value != "":
+                if "mask" in parameters and parameters["mask"].value != "":
                     with tempfile.NamedTemporaryFile() as maskfp:
                         ending = os.path.splitext(parameters["mask"].value)[1]
                         maskfp.write(parameters["mask_file"].data)
@@ -83,8 +83,7 @@ class TomoWorker:
 
             self.sock = context["socket"]
 
-    def process_event(self, event: EventData, parameters=None):
-        logger.info("i was here")
+    def process_event(self, event: EventData, parameters=None, *args, **kwargs):
         sardana = None
         if "sardana" in event.streams:
             sardana = sardana_parse(event.streams["sardana"])
