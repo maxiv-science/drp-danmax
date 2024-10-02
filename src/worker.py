@@ -136,7 +136,6 @@ class TomoWorker:
         dat = None
         if "orca" in event.streams:
             dat = parse(event.streams["orca"])
-            logger.info("self.sock %s" % (self.sock,))
             if self.sock:
                 try:
                     if angle is not None or triggerstr is not None:
