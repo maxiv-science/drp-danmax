@@ -66,7 +66,7 @@ class TomoWorker:
                 self.ai = azint.AzimuthalIntegrator(fp.name, parameters["n_splitting"].value, parameters["radial_bins"].value,
                                                     unit=parameters["unit"].value, **config)
 
-        if "tomo_repub" in parameters and parameters["tomo_repub"].value is True:
+        if "tomo_repub" not in parameters or ("tomo_repub" in parameters and parameters["tomo_repub"].value is True):
             if "context" not in context:
                 logger.info("open context because there was none")
                 context["context"] = zmq.Context()
