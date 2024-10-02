@@ -84,6 +84,7 @@ class TomoWorker:
             self.sock = context["socket"]
 
     def process_event(self, event: EventData, parameters=None):
+        logger.info("i was here")
         sardana = None
         if "sardana" in event.streams:
             sardana = sardana_parse(event.streams["sardana"])
@@ -136,7 +137,7 @@ class TomoWorker:
         dat = None
         if "orca" in event.streams:
             dat = parse(event.streams["orca"])
-
+            logger.info("self.sock %s" % (self.sock,))
             if self.sock:
                 try:
                     if angle is not None or triggerstr is not None:
