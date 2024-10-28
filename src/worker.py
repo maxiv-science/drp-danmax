@@ -26,16 +26,15 @@ logger = logging.getLogger(__name__)
 
 
 class TomoWorker:
-
     @staticmethod
     def describe_parameters():
         params = [
             BoolParameter(name="tomo_repub", default=True),
-            #FileParameter(name="poni"),
+            # FileParameter(name="poni"),
             IntParameter(name="radial_bins", default=1000),
             IntParameter(name="n_splitting", default=4),
             StrParameter(name="unit", default="q"),
-            #FileParameter(name="mask"),
+            # FileParameter(name="mask"),
         ]
         return params
 
@@ -57,16 +56,23 @@ class TomoWorker:
                     with tempfile.NamedTemporaryFile() as maskfp:
                         ending = os.path.splitext(parameters["mask"].value)[1]
                         maskfp.write(parameters["mask_file"].data)
-                        if ending == '.npy':
-                            config['mask'] = np.load(maskfp.name)
+                        if ending == ".npy":
+                            config["mask"] = np.load(maskfp.name)
                         else:
-                            config['mask'] = fabio.open(maskfp.name).data
+                            config["mask"] = fabio.open(maskfp.name).data
                         maskfp.flush()
 
-                self.ai = azint.AzimuthalIntegrator(fp.name, parameters["n_splitting"].value, parameters["radial_bins"].value,
-                                                    unit=parameters["unit"].value, **config)
+                self.ai = azint.AzimuthalIntegrator(
+                    fp.name,
+                    parameters["n_splitting"].value,
+                    parameters["radial_bins"].value,
+                    unit=parameters["unit"].value,
+                    **config,
+                )
 
-        if "tomo_repub" not in parameters or ("tomo_repub" in parameters and parameters["tomo_repub"].value is True):
+        if "tomo_repub" not in parameters or (
+            "tomo_repub" in parameters and parameters["tomo_repub"].value is True
+        ):
             if "context" not in context:
                 logger.info("open context because there was none")
                 context["context"] = zmq.Context()
@@ -77,11 +83,42 @@ class TomoWorker:
                 context["socket"].setsockopt(zmq.TCP_KEEPALIVE_CNT, 10)
                 context["socket"].setsockopt(zmq.TCP_KEEPALIVE_INTVL, 1)
                 # hack to extract port from worker name
-                context["socket"].bind(f"tcp://*:5556")
+                context["socket"].bind("tcp://*:5556")
             else:
                 logger.info("context is already there")
 
             self.sock = context["socket"]
+
+    def _proc_basler(self, event):
+        dat = parse(event.streams["basler5"])
+        print(dat)
+        if isinstance(dat, Stream1Data):
+            # np.save("test.npy", dat.data)
+            intens = dat.data.mean()
+            print("mean:", intens)
+            cg = ndimage.center_of_mass(dat.data)
+            print("center:", cg)
+            return {"basler_mean": intens, "basler_cg": cg}
+
+    def _proc_pilatus(self, event, sardana):
+        if self.ai is not None:
+            data = parse(event.streams["pilatus"])
+            if isinstance(data, Stream1Start):
+                return {"azint": {"axis": self.ai.radial_axis}}
+            if isinstance(data, Stream1Data):
+                if "bslz4" in data.compression:
+                    bufframe = event.streams["pilatus"].frames[1]
+                    if isinstance(bufframe, zmq.Frame):
+                        bufframe = bufframe.bytes
+                    img = decompress_lz4(bufframe, data.shape, dtype=data.type)
+                    # print("decomp", img, img.shape)
+                    I, _ = self.ai.integrate(img)
+                    logger.debug("got I %s", I.shape)
+                    pos = {}
+                    if hasattr(sardana, "pd_sam_x") and hasattr(sardana, "pd_sam_y"):
+                        print("got position")
+                        pos = {"x": sardana.pd_sam_x, "y": sardana.pd_sam_y}
+                    return {"azint": {"I": I, "position": pos}}
 
     def process_event(self, event: EventData, parameters=None, *args, **kwargs):
         sardana = None
@@ -90,38 +127,13 @@ class TomoWorker:
             print("saranda is", sardana)
 
         if "basler5" in event.streams:
-            dat = parse(event.streams["basler5"])
-            print(dat)
-            if isinstance(dat, Stream1Data):
-                #np.save("test.npy", dat.data)
-                intens = dat.data.mean()
-                print("mean:", intens)
-                cg = ndimage.center_of_mass(dat.data)
-                print("center:", cg)
-                return {"basler_mean": intens, "basler_cg": cg}
+            return self._proc_basler(event)
 
         if "pilatus" in event.streams:
             logger.debug("use pilatus data for azint")
-            if self.ai is not None:
-                data = parse(event.streams["pilatus"])
-                if isinstance(data, Stream1Start):
-                    return {"azint":{"axis": self.ai.radial_axis}}
-                if isinstance(data, Stream1Data):
-                    if 'bslz4' in data.compression:
-                        bufframe = event.streams["pilatus"].frames[1]
-                        if isinstance(bufframe, zmq.Frame):
-                            bufframe = bufframe.bytes
-                        img = decompress_lz4(bufframe, data.shape, dtype=data.type)
-                        #print("decomp", img, img.shape)
-                        I, _ = self.ai.integrate(img)
-                        logger.debug("got I %s", I.shape)
-                        pos = {}
-                        if hasattr(sardana, "pd_sam_x") and hasattr(sardana, "pd_sam_y"):
-                            print("got position")
-                            pos = {"x":sardana.pd_sam_x, "y":sardana.pd_sam_y}
-                        return {"azint": {"I":I, "position": pos}}
+            return self._proc_pilatus(event, sardana)
 
-        degree_to_enc_formula = np.poly1d([11930463,0])
+        degree_to_enc_formula = np.poly1d([11930463, 0])
         angle = None
         triggerstr = None
         if "pcap_rot" in event.streams:
@@ -132,7 +144,7 @@ class TomoWorker:
                 triggertime = timedelta(seconds=res.fields["PCAP.TS_TRIG.Value"].value)
                 d = res.fields["SFP3_SYNC_IN.POS1.Mean"].value
                 angle = np.roots(degree_to_enc_formula - d)[0] - 50
-                triggerstr = (self.arm_time+triggertime).isoformat()
+                triggerstr = (self.arm_time + triggertime).isoformat()
         dat = None
         if "orca" in event.streams:
             dat = parse(event.streams["orca"])
@@ -147,17 +159,24 @@ class TomoWorker:
                             header["encoder_angle"] = angle
                         if triggerstr is not None:
                             header["timestamp_pcap"] = triggerstr
-                        header["timestamp_worker"] = datetime.now(timezone.utc).isoformat()
-                        #parts = [json.dumps(header).encode()]+event.streams["orca"].frames[1:]
-                        self.sock.send_json(header,
-                            flags=zmq.SNDMORE|zmq.NOBLOCK,
+                        header["timestamp_worker"] = datetime.now(
+                            timezone.utc
+                        ).isoformat()
+                        # parts = [json.dumps(header).encode()]+event.streams["orca"].frames[1:]
+                        self.sock.send_json(
+                            header,
+                            flags=zmq.SNDMORE | zmq.NOBLOCK,
                         )
-                        self.sock.send(event.streams["orca"].frames[1], flags=zmq.NOBLOCK)
-                        #logger.info("send augmented header %s", header)
-                        #self.sock.send_multipart(parts, flags=zmq.NOBLOCK)
+                        self.sock.send(
+                            event.streams["orca"].frames[1], flags=zmq.NOBLOCK
+                        )
+                        # logger.info("send augmented header %s", header)
+                        # self.sock.send_multipart(parts, flags=zmq.NOBLOCK)
                     else:
                         logger.info("no angle added")
-                        self.sock.send_multipart(event.streams["orca"].frames, flags=zmq.NOBLOCK)
+                        self.sock.send_multipart(
+                            event.streams["orca"].frames, flags=zmq.NOBLOCK
+                        )
                 except Exception as e:
                     logger.warning("cannot repub frame %s", e.__repr__())
 
