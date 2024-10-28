@@ -1,3 +1,3 @@
 [{"name": "pileup", "data": "True"},
-{"name":"tomo_repub", "data": "True"},
+{"name":"tomo_repub", "data": "False"},
 {"name": "poni_file", "data":"# Nota: C-Order, 1 refers to the Y axis, 2 to the X axis \n# Calibration done at Wed Mar 15 15:21:14 2023\nponi_version: 2\nDetector: Pilatus2M\nDetector_config: {}\nDistance: 0.1473540444358966\nPoni1: 0.09212428702188205\nPoni2: 0.07666835320811331\nRot1: -0.007505574392957286\nRot2: 0.0038323922132510297\nRot3: 2.306365694799001e-07\nWavelength: 7.749012402075016e-11"}]

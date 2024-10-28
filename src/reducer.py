@@ -39,7 +39,7 @@ class TomoReducer:
                     ]
                 else:
                     self.publish["azint"]["I"].append(result.payload["azint"]["I"])
-                    for k, v in result.payload["azint"]["positions"].items():
+                    for k, v in result.payload["azint"]["position"].items():
                         if k not in self.publish["azint"]["positions"]:
                             self.publish["azint"]["positions"][k] = []
                         self.publish["azint"]["positions"][k].append(v)
