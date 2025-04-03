@@ -4,6 +4,10 @@ import tempfile
 import json
 from datetime import datetime, timedelta, timezone
 
+# for debugging
+import io
+import traceback
+
 import zmq
 from dranspose.event import EventData
 from dranspose.parameters import BoolParameter, IntParameter, StrParameter
@@ -179,6 +183,12 @@ class TomoWorker:
                         )
                 except Exception as e:
                     logger.warning("cannot repub frame %s", e.__repr__())
+                    # print more info
+                    with io.StringIO() as output:
+                        traceback.print_exc(file=output)
+                        logger.warning(
+                            "cannot repub frame (traceback): " + output.getvalue()
+                        )
 
         if isinstance(dat, Stream1Start):
             return {"filename": dat.filename}
