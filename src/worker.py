@@ -205,7 +205,7 @@ class TomoWorker:
                         logger.warning(
                             "cannot repub frame (traceback): " + output.getvalue()
                         )
-                    
+
                     # print variables
                     logger.warning(
                         "angle: %s, triggerstr: %s, streams[orca]: %s"
