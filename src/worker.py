@@ -147,7 +147,7 @@ class TomoWorker:
             elif isinstance(res, PositionCapValues):
                 print("res.fields:", res.fields)
                 triggertime = timedelta(seconds=res.fields["PCAP.TS_TRIG.Value"].value)
-                #d = res.fields["SFP3_SYNC_IN.POS1.Mean"].value
+                # d = res.fields["SFP3_SYNC_IN.POS1.Mean"].value
                 d = 10000000
                 angle = np.roots(degree_to_enc_formula - d)[0] - 50
                 triggerstr = (self.arm_time + triggertime).isoformat()
