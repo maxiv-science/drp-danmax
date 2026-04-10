@@ -1,6 +1,6 @@
 dranspose == 0.1.0
 h5py
-numpy
+numpy < 2.0.0
 scipy
 h5pyd
 fabio

@@ -124,6 +124,7 @@ class TomoWorker:
                         pos = {"x": sardana.pd_sam_x, "y": sardana.pd_sam_y}
                     return {"azint": {"I": I, "position": pos}}
 
+    # flake8: noqa: C901
     def process_event(self, event: EventData, parameters=None, *args, **kwargs):
         sardana = None
         if "sardana" in event.streams:
@@ -154,6 +155,9 @@ class TomoWorker:
         dat = None
         if "orca" in event.streams:
             dat = parse(event.streams["orca"])
+            print("dat:", type(dat), dat)
+            print("event.streams:", event.streams)
+            print("event.streams:[orca]", parse(event.streams["orca"]))
             if self.sock:
                 try:
                     if angle is not None or triggerstr is not None:
@@ -169,13 +173,23 @@ class TomoWorker:
                             timezone.utc
                         ).isoformat()
                         # parts = [json.dumps(header).encode()]+event.streams["orca"].frames[1:]
+                        flag_SNDMORE = (
+                            zmq.SNDMORE if len(event.streams["orca"].frames) > 1 else 0
+                        )
                         self.sock.send_json(
                             header,
-                            flags=zmq.SNDMORE | zmq.NOBLOCK,
+                            flags=flag_SNDMORE | zmq.NOBLOCK,
                         )
-                        self.sock.send(
-                            event.streams["orca"].frames[1], flags=zmq.NOBLOCK
-                        )
+                        for k, part in enumerate(event.streams["orca"].frames[1:]):
+                            flag_SNDMORE = (
+                                zmq.SNDMORE
+                                if k != (len(event.streams["orca"].frames) - 2)
+                                else 0
+                            )
+                            self.sock.send(
+                                part,
+                                flags=flag_SNDMORE | zmq.NOBLOCK,
+                            )
                         # logger.info("send augmented header %s", header)
                         # self.sock.send_multipart(parts, flags=zmq.NOBLOCK)
                     else:
@@ -191,19 +205,34 @@ class TomoWorker:
                         logger.warning(
                             "cannot repub frame (traceback): " + output.getvalue()
                         )
+                    
+                    # print variables
+                    logger.warning(
+                        "angle: %s, triggerstr: %s, streams[orca]: %s"
+                        % (
+                            str(angle),
+                            str(triggerstr),
+                            str(event.streams["orca"]),
+                        )
+                    )
 
         if isinstance(dat, Stream1Start):
             return {"filename": dat.filename}
-
         elif isinstance(dat, Stream1Data):
-            pileup = parameters["pileup"].value
+            try:
+                pileup = parameters["pileup"].value
+            except KeyError:
+                pileup = False
             if pileup:
                 if self.pile is None:
                     self.pile = np.zeros_like(dat.data, dtype=np.uint32)
                 self.pile += dat.data
                 self.nimages += 1
         elif isinstance(dat, Stream1End):
-            pileup = parameters["pileup"].value
+            try:
+                pileup = parameters["pileup"].value
+            except KeyError:
+                pileup = False
             print("send partial pileup")
             if pileup:
                 return {"pile": self.pile, "nimages": self.nimages}
